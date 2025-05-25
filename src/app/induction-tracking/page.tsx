@@ -1,10 +1,13 @@
 import React from 'react';
-import InductionTrackingClient from './InductionTrackingClient';
 import { getInductionTypes } from '@/lib/data/inductionTypes';
 import { getEmployees } from '@/lib/data/employees';
 import { db } from '@/lib/db/operations';
 import { mapDbInductionsToUiInductions } from '@/lib/mappers/inductionMapper';
 import { Induction, InductionStatus, AlertInduction } from '@/lib/data/inductions';
+
+// Import the wrapper component instead
+import dynamic from 'next/dynamic';
+const InductionTrackingWrapper = dynamic(() => import('./InductionTrackingWrapper'), { ssr: false });
 
 export const metadata = {
   title: 'Induction Tracking - OpsFlow',
@@ -56,7 +59,7 @@ export default async function InductionTrackingPage() {
   };
 
   return (
-    <InductionTrackingClient 
+    <InductionTrackingWrapper 
       inductions={inductions}
       employees={employees}
       inductionTypes={inductionTypes}

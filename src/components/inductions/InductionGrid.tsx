@@ -1,36 +1,65 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Icon from '@/components/ui/Icon';
 import { Induction } from '@/lib/data/inductions';
+import { toast } from 'sonner';
 
 interface InductionGridProps {
   inductions: Induction[];
-  onView: (inductionId: string) => void;
-  onRemind: (inductionId: string) => void;
-  onContinue: (inductionId: string) => void;
-  onEdit: (inductionId: string) => void;
-  onStart: (inductionId: string) => void;
-  onCertificate: (inductionId: string) => void;
-  onArchive: (inductionId: string) => void;
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
+  currentPage?: number;
+  totalPages?: number;
+  baseUrl?: string;
 }
 
 export default function InductionGrid({
   inductions,
-  onView,
-  onRemind,
-  onContinue,
-  onEdit,
-  onStart,
-  onCertificate,
-  onArchive,
-  currentPage,
-  totalPages,
-  onPageChange
+  currentPage = 1,
+  totalPages = 1,
+  baseUrl = '/induction-tracking'
 }: InductionGridProps) {
+  const router = useRouter();
+  const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
+  
+  // Handle view action - navigate to detail page
+  const handleView = (inductionId: string) => {
+    router.push(`${baseUrl}/inductions/${inductionId}`);
+  };
+  
+  // Handle edit action - navigate to edit page
+  const handleEdit = (inductionId: string) => {
+    router.push(`${baseUrl}/inductions/${inductionId}/edit`);
+  };
+  
+  // Handle API actions
+  const handleApiAction = async (inductionId: string, action: string) => {
+    setIsLoading(prev => ({ ...prev, [inductionId]: true }));
+    
+    try {
+      const response = await fetch(`/api/inductions/${inductionId}/${action}`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        toast.success(`Induction ${action} action successful`);
+        router.refresh(); // Refresh the page data
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || `Failed to ${action} induction`);
+      }
+    } catch (error) {
+      console.error(`Error performing ${action} action:`, error);
+      toast.error(`An error occurred while performing the ${action} action`);
+    } finally {
+      setIsLoading(prev => ({ ...prev, [inductionId]: false }));
+    }
+  };
+  
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    router.push(`${baseUrl}?page=${page}`);
+  };
   const getStatusClass = (status: string) => {
     switch (status) {
       case 'completed':
@@ -62,30 +91,36 @@ export default function InductionGrid({
   };
 
   const getActionButtons = (induction: Induction) => {
+    // Check if this induction has an ongoing action
+    const isActionLoading = isLoading[induction.id] || false;
+    
     switch (induction.status) {
       case 'completed':
         return (
           <div className="flex justify-center space-x-2 mt-4">
             <button 
               className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200"
-              onClick={() => onView(induction.id)}
+              onClick={() => handleView(induction.id)}
+              disabled={isActionLoading}
               title="View Details"
             >
-              <Icon name="fas fa-eye" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-eye" />}
             </button>
             <button 
               className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"
-              onClick={() => onCertificate(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'certificate')}
+              disabled={isActionLoading}
               title="View Certificate"
             >
-              <Icon name="fas fa-certificate" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-certificate" />}
             </button>
             <button 
               className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
-              onClick={() => onArchive(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'archive')}
+              disabled={isActionLoading}
               title="Archive"
             >
-              <Icon name="fas fa-archive" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-archive" />}
             </button>
           </div>
         );
@@ -94,24 +129,27 @@ export default function InductionGrid({
           <div className="flex justify-center space-x-2 mt-4">
             <button 
               className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200"
-              onClick={() => onView(induction.id)}
+              onClick={() => handleView(induction.id)}
+              disabled={isActionLoading}
               title="View Details"
             >
-              <Icon name="fas fa-eye" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-eye" />}
             </button>
             <button 
               className="p-2 bg-green-100 text-green-600 rounded-full hover:bg-green-200"
-              onClick={() => onContinue(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'continue')}
+              disabled={isActionLoading}
               title="Continue Training"
             >
-              <Icon name="fas fa-play" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-play" />}
             </button>
             <button 
               className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
-              onClick={() => onEdit(induction.id)}
+              onClick={() => handleEdit(induction.id)}
+              disabled={isActionLoading}
               title="Edit"
             >
-              <Icon name="fas fa-edit" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-edit" />}
             </button>
           </div>
         );
@@ -120,24 +158,27 @@ export default function InductionGrid({
           <div className="flex justify-center space-x-2 mt-4">
             <button 
               className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200"
-              onClick={() => onView(induction.id)}
+              onClick={() => handleView(induction.id)}
+              disabled={isActionLoading}
               title="View Details"
             >
-              <Icon name="fas fa-eye" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-eye" />}
             </button>
             <button 
               className="p-2 bg-purple-100 text-purple-600 rounded-full hover:bg-purple-200"
-              onClick={() => onStart(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'start')}
+              disabled={isActionLoading}
               title="Start Training"
             >
-              <Icon name="fas fa-play" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-play" />}
             </button>
             <button 
               className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
-              onClick={() => onEdit(induction.id)}
+              onClick={() => handleEdit(induction.id)}
+              disabled={isActionLoading}
               title="Edit"
             >
-              <Icon name="fas fa-edit" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-edit" />}
             </button>
           </div>
         );
@@ -146,24 +187,27 @@ export default function InductionGrid({
           <div className="flex justify-center space-x-2 mt-4">
             <button 
               className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200"
-              onClick={() => onView(induction.id)}
+              onClick={() => handleView(induction.id)}
+              disabled={isActionLoading}
               title="View Details"
             >
-              <Icon name="fas fa-eye" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-eye" />}
             </button>
             <button 
               className="p-2 bg-orange-100 text-orange-600 rounded-full hover:bg-orange-200"
-              onClick={() => onRemind(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'remind')}
+              disabled={isActionLoading}
               title="Send Reminder"
             >
-              <Icon name="fas fa-bell" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-bell" />}
             </button>
             <button 
               className="p-2 bg-gray-100 text-gray-600 rounded-full hover:bg-gray-200"
-              onClick={() => onEdit(induction.id)}
+              onClick={() => handleEdit(induction.id)}
+              disabled={isActionLoading}
               title="Edit"
             >
-              <Icon name="fas fa-edit" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-edit" />}
             </button>
           </div>
         );
@@ -172,10 +216,11 @@ export default function InductionGrid({
           <div className="flex justify-center space-x-2 mt-4">
             <button 
               className="p-2 bg-blue-100 text-blue-600 rounded-full hover:bg-blue-200"
-              onClick={() => onView(induction.id)}
+              onClick={() => handleView(induction.id)}
+              disabled={isActionLoading}
               title="View Details"
             >
-              <Icon name="fas fa-eye" />
+              {isActionLoading ? <Icon name="fas fa-spinner fa-spin" /> : <Icon name="fas fa-eye" />}
             </button>
           </div>
         );
@@ -274,7 +319,7 @@ export default function InductionGrid({
       <div className="flex items-center justify-center space-x-2 mb-8">
         <button 
           className={`px-3 py-1 ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'} rounded text-sm`}
-          onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
+          onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
           disabled={currentPage === 1}
         >
           Previous
@@ -286,7 +331,7 @@ export default function InductionGrid({
             <button 
               key={page}
               className={`px-3 py-1 ${currentPage === page ? 'bg-blue-600 text-white' : 'border border-gray-300 hover:bg-gray-50'} rounded text-sm`}
-              onClick={() => onPageChange(page)}
+              onClick={() => handlePageChange(page)}
             >
               {page}
             </button>
@@ -295,7 +340,7 @@ export default function InductionGrid({
         
         <button 
           className={`px-3 py-1 ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'} rounded text-sm`}
-          onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
+          onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
           disabled={currentPage === totalPages}
         >
           Next

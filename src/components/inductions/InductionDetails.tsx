@@ -1,23 +1,40 @@
 'use client';
 
 import React from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Icon from '@/components/ui/Icon';
 import { Induction } from '@/lib/data/inductions';
 
 interface InductionDetailsProps {
-  isOpen: boolean;
+  induction: Induction;
   onClose: () => void;
-  induction: Induction | null;
   onDownloadCertificate?: (inductionId: string) => void;
+  returnUrl?: string;
 }
 
 export default function InductionDetails({
-  isOpen,
-  onClose,
   induction,
-  onDownloadCertificate
+  onClose,
+  onDownloadCertificate,
+  returnUrl = '/induction-tracking'
 }: InductionDetailsProps) {
-  if (!isOpen || !induction) return null;
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
+  // Check if modal should be shown based on URL params
+  const viewId = searchParams.get('view');
+  const showModal = viewId === induction.id;
+  
+  // Handle close action
+  const handleClose = () => {
+    if (onClose) {
+      onClose();
+    } else {
+      router.push(returnUrl);
+    }
+  };
+  
+  if (!showModal) return null;
 
   // Parse notes field if it's a JSON string
   const parsedNotes = React.useMemo(() => {
@@ -51,11 +68,11 @@ export default function InductionDetails({
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white rounded-xl shadow-lg max-w-2xl w-full mx-4 max-h-screen overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-lg max-w-4xl w-full mx-4 max-h-[90vh] flex flex-col">
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Induction Details</h2>
           <button 
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-500"
           >
             <Icon name="fas fa-times" />

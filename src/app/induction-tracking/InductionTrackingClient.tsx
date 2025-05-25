@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Icon from '@/components/ui/Icon';
 import { toast } from 'sonner';
 import './induction-tracking.css';
@@ -39,6 +40,9 @@ export default function InductionTrackingClient({
   stats,
   criticalInductions: initialCriticalInductions
 }: InductionTrackingClientProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  
   // State
   const [inductions, setInductions] = useState<Induction[]>(initialInductions);
   const [filteredInductions, setFilteredInductions] = useState<Induction[]>(initialInductions);
@@ -51,11 +55,26 @@ export default function InductionTrackingClient({
   const [statusFilter, setStatusFilter] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState('');
   
-  // Modals
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isRescheduleModalOpen, setIsRescheduleModalOpen] = useState(false);
-  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+  // Check URL params for modal state
+  const isAddModalOpen = searchParams.get('add') === 'true';
+  const isDetailsModalOpen = Boolean(searchParams.get('view'));
+  
+  // Get the selected induction based on URL params
   const [selectedInduction, setSelectedInduction] = useState<Induction | null>(null);
+  
+  // Update selected induction based on URL parameters
+  useEffect(() => {
+    const viewId = searchParams.get('view');
+    const rescheduleId = searchParams.get('reschedule');
+    const targetId = viewId || rescheduleId;
+    
+    if (targetId) {
+      const induction = inductions.find(ind => ind.id === targetId) || null;
+      setSelectedInduction(induction);
+    } else {
+      setSelectedInduction(null);
+    }
+  }, [searchParams, inductions]);
   
   // Calculate total pages
   const itemsPerPage = 10;
@@ -149,87 +168,124 @@ export default function InductionTrackingClient({
   };
 
   const handleViewInduction = (inductionId: string) => {
-    const induction = inductions.find(induction => induction.id === inductionId);
-    if (induction) {
-      setSelectedInduction(induction);
-      setIsDetailsModalOpen(true);
-    }
+    // Navigate to the same page with view parameter
+    router.push(`/induction-tracking?view=${inductionId}`);
   };
 
-  const handleRemindInduction = (inductionId: string) => {
-    toast.success(`Reminder sent for induction #${inductionId}`);
-    // Implement reminder logic here
+  const handleRemindInduction = async (inductionId: string) => {
+    try {
+      const response = await fetch(`/api/inductions/${inductionId}/remind`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        toast.success(`Reminder sent for induction #${inductionId}`);
+        router.refresh(); // Refresh the page data
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to send reminder');
+      }
+    } catch (error) {
+      console.error('Error sending reminder:', error);
+      toast.error('An error occurred while sending the reminder');
+    }
   };
 
   const handleRescheduleInduction = (inductionId: string) => {
-    const induction = inductions.find(induction => induction.id === inductionId);
-    if (induction) {
-      setSelectedInduction(induction);
-      setIsRescheduleModalOpen(true);
+    // Navigate to the same page with reschedule parameter
+    router.push(`/induction-tracking?reschedule=${inductionId}`);
+  };
+
+  // This function is no longer needed as RescheduleInductionModal now handles its own submission
+  // We keep it as a reference for the API structure
+  const handleRescheduleSubmit = async (inductionId: string, newDueDate: string) => {
+    try {
+      const response = await fetch(`/api/inductions/${inductionId}/reschedule`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ dueDate: newDueDate }),
+      });
+      
+      if (response.ok) {
+        toast.success('Induction rescheduled successfully');
+        router.refresh(); // Refresh the page data
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to reschedule induction');
+      }
+    } catch (error) {
+      console.error('Error rescheduling induction:', error);
+      toast.error('An error occurred while rescheduling the induction');
     }
   };
 
-  const handleRescheduleSubmit = (inductionId: string, newDueDate: string) => {
-    // Update induction due date
-    const updatedInductions = inductions.map(induction => {
-      if (induction.id === inductionId) {
-        return {
-          ...induction, 
-          dueDate: newDueDate,
-          status: 'in-progress' as InductionStatus // Change status from overdue to in-progress
-        };
+  const handleContinueInduction = async (inductionId: string) => {
+    try {
+      const response = await fetch(`/api/inductions/${inductionId}/continue`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        toast.success(`Continuing induction #${inductionId}`);
+        router.refresh(); // Refresh the page data
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to continue induction');
       }
-      return induction;
-    });
-    
-    setInductions(updatedInductions);
-    
-    // Remove from critical inductions if it was there
-    const updatedCriticalInductions = criticalInductions.filter(
-      induction => induction.id !== inductionId
-    );
-    
-    setCriticalInductions(updatedCriticalInductions);
-    
-    toast.success(`Induction rescheduled successfully`);
-    setIsRescheduleModalOpen(false);
-  };
-
-  const handleContinueInduction = (inductionId: string) => {
-    toast.info(`Continuing induction #${inductionId}`);
-    // Implement continue logic here
+    } catch (error) {
+      console.error('Error continuing induction:', error);
+      toast.error('An error occurred while continuing the induction');
+    }
   };
 
   const handleEditInduction = (inductionId: string) => {
-    toast.info(`Editing induction #${inductionId}`);
-    // Implement edit logic here
+    // Navigate to edit page
+    router.push(`/induction-tracking/inductions/${inductionId}/edit`);
   };
 
-  const handleStartInduction = (inductionId: string) => {
-    // Update induction status to in-progress
-    const updatedInductions = inductions.map(induction => {
-      if (induction.id === inductionId) {
-        return {
-          ...induction,
-          status: 'in-progress' as InductionStatus,
-          progress: 10 // Start with some progress
-        };
+  const handleStartInduction = async (inductionId: string) => {
+    try {
+      const response = await fetch(`/api/inductions/${inductionId}/start`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        toast.success(`Induction started successfully`);
+        router.refresh(); // Refresh the page data
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to start induction');
       }
-      return induction;
-    });
-    
-    setInductions(updatedInductions);
-    toast.success(`Induction started successfully`);
+    } catch (error) {
+      console.error('Error starting induction:', error);
+      toast.error('An error occurred while starting the induction');
+    }
   };
 
   const handleCertificateInduction = (inductionId: string) => {
-    toast.info(`Viewing certificate for induction #${inductionId}`);
-    // Implement certificate view logic here
+    // Navigate to certificate page
+    router.push(`/induction-tracking/inductions/${inductionId}/certificate`);
   };
 
-  const handleArchiveInduction = (inductionId: string) => {
-    toast.info(`Archiving induction #${inductionId}`);
-    // Implement archive logic here
+  const handleArchiveInduction = async (inductionId: string) => {
+    try {
+      const response = await fetch(`/api/inductions/${inductionId}/archive`, {
+        method: 'POST',
+      });
+      
+      if (response.ok) {
+        toast.success(`Induction archived successfully`);
+        router.refresh(); // Refresh the page data
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to archive induction');
+      }
+    } catch (error) {
+      console.error('Error archiving induction:', error);
+      toast.error('An error occurred while archiving the induction');
+    }
   };
 
   const handleDownloadCertificate = (inductionId: string) => {
@@ -270,16 +326,21 @@ export default function InductionTrackingClient({
     setInductions(prev => [newInduction, ...prev]);
     
     toast.success('Induction scheduled successfully');
-    setIsAddModalOpen(false);
+    router.push('/induction-tracking'); // Close modal using URL-based navigation
   };
 
   const handleBulkAssign = () => {
-    setIsAddModalOpen(true);
+    router.push('/induction-tracking?add=true');
   };
 
   const handleExportReport = () => {
     toast.success('Induction report exported successfully');
     // Implement export logic here
+  };
+
+  // Handler for opening the add induction modal
+  const handleAddInductionClick = () => {
+    router.push('/induction-tracking?add=true');
   };
 
   return (
@@ -309,7 +370,7 @@ export default function InductionTrackingClient({
               Export Report
             </button>
             <button 
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={handleAddInductionClick}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Icon name="fas fa-plus" className="mr-2" />
@@ -352,7 +413,7 @@ export default function InductionTrackingClient({
               There are currently no inductions in the database. Add your first induction to get started.
             </p>
             <button 
-              onClick={() => setIsAddModalOpen(true)}
+              onClick={handleAddInductionClick}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
             >
               <Icon name="fas fa-plus" className="mr-2" />
@@ -363,59 +424,45 @@ export default function InductionTrackingClient({
       ) : currentView === 'list' ? (
         <InductionTable 
           inductions={currentItems}
-          onView={handleViewInduction}
-          onRemind={handleRemindInduction}
-          onContinue={handleContinueInduction}
-          onEdit={handleEditInduction}
-          onStart={handleStartInduction}
-          onCertificate={handleCertificateInduction}
-          onArchive={handleArchiveInduction}
-          onSelectAll={handleSelectAll}
-          onSelectInduction={handleSelectInduction}
           selectedInductions={selectedInductions}
-          onBulkAction={handleBulkAction}
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={handlePageChange}
+          baseUrl="/induction-tracking"
         />
       ) : (
         <InductionGrid 
           inductions={currentItems}
-          onView={handleViewInduction}
-          onRemind={handleRemindInduction}
-          onContinue={handleContinueInduction}
-          onEdit={handleEditInduction}
-          onStart={handleStartInduction}
-          onCertificate={handleCertificateInduction}
-          onArchive={handleArchiveInduction}
           currentPage={currentPage}
           totalPages={totalPages}
-          onPageChange={handlePageChange}
+          baseUrl="/induction-tracking"
         />
       )}
 
-      {/* Modals */}
-      <AddInductionModal 
-        isOpen={isAddModalOpen}
-        onClose={() => setIsAddModalOpen(false)}
-        employees={employees}
-        inductionTypes={inductionTypes}
-        onSubmit={handleAddInduction}
-      />
+      {/* Modals - Using URL-based state management */}
+      {isAddModalOpen && (
+        <AddInductionModal 
+          employees={employees}
+          inductionTypes={inductionTypes}
+          returnUrl="/induction-tracking"
+        />
+      )}
 
-      <RescheduleInductionModal 
-        isOpen={isRescheduleModalOpen}
-        onClose={() => setIsRescheduleModalOpen(false)}
-        induction={selectedInduction}
-        onSubmit={handleRescheduleSubmit}
-      />
+      {selectedInduction && (
+        <RescheduleInductionModal 
+          induction={selectedInduction}
+          returnUrl="/induction-tracking"
+        />
+      )}
 
-      <InductionDetails 
-        isOpen={isDetailsModalOpen}
-        onClose={() => setIsDetailsModalOpen(false)}
-        induction={selectedInduction}
-        onDownloadCertificate={handleDownloadCertificate}
-      />
+      {/* InductionDetails - Using URL-based state management */}
+      {selectedInduction && (
+        <InductionDetails 
+          induction={selectedInduction}
+          onClose={() => router.push('/induction-tracking')}
+          onDownloadCertificate={handleDownloadCertificate}
+          returnUrl="/induction-tracking"
+        />
+      )}
     </div>
   );
 }

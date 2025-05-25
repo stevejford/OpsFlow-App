@@ -1,53 +1,88 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, FormEvent } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Icon from '@/components/ui/Icon';
 import { Employee } from '@/lib/data/employees';
 import { InductionType } from '@/lib/data/inductionTypes';
+import { toast } from 'sonner';
 
 interface AddInductionModalProps {
-  isOpen: boolean;
-  onClose: () => void;
   employees: Employee[];
   inductionTypes: InductionType[];
-  onSubmit: (data: {
-    employeeId: string;
-    type: string;
-    description: string;
-    scheduledDate: string;
-    dueDate: string;
-  }) => void;
+  returnUrl?: string;
 }
 
 export default function AddInductionModal({
-  isOpen,
-  onClose,
   employees,
   inductionTypes,
-  onSubmit
+  returnUrl = '/induction-tracking'
 }: AddInductionModalProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const isOpen = searchParams.get('addInduction') === 'true';
+  
   const [employeeId, setEmployeeId] = useState('');
   const [type, setType] = useState('');
   const [description, setDescription] = useState('');
   const [scheduledDate, setScheduledDate] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Handle modal close by navigating back or to the return URL
+  const handleClose = () => {
+    router.push(returnUrl);
+  };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    onSubmit({
-      employeeId,
-      type,
-      description,
-      scheduledDate,
-      dueDate
-    });
     
-    // Reset form
-    setEmployeeId('');
-    setType('');
-    setDescription('');
-    setScheduledDate('');
-    setDueDate('');
+    if (!employeeId || !type || !scheduledDate || !dueDate) {
+      toast.error('Please fill in all required fields');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Direct API call to create induction
+      const response = await fetch('/api/inductions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employeeId,
+          type,
+          description,
+          scheduledDate,
+          dueDate
+        }),
+      });
+      
+      if (response.ok) {
+        toast.success('Induction scheduled successfully');
+        
+        // Reset form
+        setEmployeeId('');
+        setType('');
+        setDescription('');
+        setScheduledDate('');
+        setDueDate('');
+        
+        // Close modal and refresh the page
+        router.refresh();
+        handleClose();
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || 'Failed to schedule induction');
+      }
+    } catch (error) {
+      console.error('Error scheduling induction:', error);
+      toast.error('An error occurred while scheduling the induction');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -58,7 +93,7 @@ export default function AddInductionModal({
         <div className="p-6 border-b border-gray-200 flex justify-between items-center">
           <h2 className="text-xl font-semibold text-gray-900">Schedule New Induction</h2>
           <button 
-            onClick={onClose}
+            onClick={handleClose}
             className="text-gray-400 hover:text-gray-500"
           >
             <Icon name="fas fa-times" />
@@ -139,16 +174,22 @@ export default function AddInductionModal({
           <div className="flex justify-end space-x-3 pt-4">
             <button 
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
             >
               Cancel
             </button>
             <button 
               type="submit"
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={isSubmitting}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center"
             >
-              Schedule Induction
+              {isSubmitting ? (
+                <>
+                  <Icon name="fas fa-spinner fa-spin" className="mr-2" />
+                  Scheduling...
+                </>
+              ) : 'Schedule Induction'}
             </button>
           </div>
         </form>

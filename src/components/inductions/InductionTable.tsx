@@ -1,46 +1,103 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Icon from '@/components/ui/Icon';
 import { Induction } from '@/lib/data/inductions';
+import { toast } from 'sonner';
 
 interface InductionTableProps {
   inductions: Induction[];
-  onView: (inductionId: string) => void;
-  onRemind: (inductionId: string) => void;
-  onContinue: (inductionId: string) => void;
-  onEdit: (inductionId: string) => void;
-  onStart: (inductionId: string) => void;
-  onCertificate: (inductionId: string) => void;
-  onArchive: (inductionId: string) => void;
-  onSelectAll: (selected: boolean) => void;
-  onSelectInduction: (inductionId: string, selected: boolean) => void;
-  selectedInductions: string[];
-  onBulkAction: () => void;
-  currentPage: number;
-  totalPages: number;
-  onPageChange: (page: number) => void;
+  selectedInductions?: string[];
+  currentPage?: number;
+  totalPages?: number;
+  baseUrl?: string;
 }
 
 export default function InductionTable({
   inductions,
-  onView,
-  onRemind,
-  onContinue,
-  onEdit,
-  onStart,
-  onCertificate,
-  onArchive,
-  onSelectAll,
-  onSelectInduction,
-  selectedInductions,
-  onBulkAction,
-  currentPage,
-  totalPages,
-  onPageChange
+  selectedInductions: initialSelectedInductions = [],
+  currentPage = 1,
+  totalPages = 1,
+  baseUrl = '/induction-tracking',
 }: InductionTableProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Local state for selections
+  const [selectedInductions, setSelectedInductions] = useState<string[]>(initialSelectedInductions);
+  const [isLoading, setIsLoading] = useState<{[key: string]: boolean}>({});
+
   const allSelected = inductions.length > 0 && selectedInductions.length === inductions.length;
-  
+
+  // Handle view action - navigate to detail page
+  const handleView = (inductionId: string) => {
+    router.push(`${baseUrl}/inductions/${inductionId}`);
+  };
+
+  // Handle edit action - navigate to edit page
+  const handleEdit = (inductionId: string) => {
+    router.push(`${baseUrl}/inductions/${inductionId}/edit`);
+  };
+
+  // Handle API actions
+  const handleApiAction = async (inductionId: string, action: string) => {
+    setIsLoading(prev => ({ ...prev, [inductionId]: true }));
+
+    try {
+      const response = await fetch(`/api/inductions/${inductionId}/${action}`, {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        toast.success(`Induction ${action} action successful`);
+        router.refresh(); // Refresh the page data
+      } else {
+        const errorData = await response.json();
+        toast.error(errorData.message || `Failed to ${action} induction`);
+      }
+    } catch (error) {
+      console.error(`Error performing ${action} action:`, error);
+      toast.error(`An error occurred while performing the ${action} action`);
+    } finally {
+      setIsLoading(prev => ({ ...prev, [inductionId]: false }));
+    }
+  };
+
+  // Handle selection of a single induction
+  const handleSelectInduction = (inductionId: string, selected: boolean) => {
+    if (selected) {
+      setSelectedInductions(prev => [...prev, inductionId]);
+    } else {
+      setSelectedInductions(prev => prev.filter(id => id !== inductionId));
+    }
+  };
+
+  // Handle selection of all inductions
+  const handleSelectAll = (selected: boolean) => {
+    if (selected) {
+      setSelectedInductions(inductions.map(induction => induction.id));
+    } else {
+      setSelectedInductions([]);
+    }
+  };
+
+  // Handle bulk actions
+  const handleBulkAction = async () => {
+    if (selectedInductions.length === 0) {
+      toast.error('No inductions selected');
+      return;
+    }
+
+    // Show a modal or dropdown for bulk actions
+    router.push(`${baseUrl}?bulkAction=true&ids=${selectedInductions.join(',')}`);
+  };
+
+  // Handle page change
+  const handlePageChange = (page: number) => {
+    router.push(`${baseUrl}?page=${page}`);
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
@@ -74,12 +131,18 @@ export default function InductionTable({
   };
 
   const getActionButtons = (induction: Induction) => {
+    // Check if this induction has an ongoing action
+    const isActionLoading = isLoading[induction.id] || false;
+    
     const viewButton = (
       <button 
         className="text-blue-600 hover:text-blue-900 mr-3"
-        onClick={() => onView(induction.id)}
+        onClick={() => handleView(induction.id)}
+        disabled={isActionLoading}
       >
-        View
+        {isActionLoading ? (
+          <Icon name="fas fa-spinner fa-spin" className="mr-1" />
+        ) : 'View'}
       </button>
     );
 
@@ -90,15 +153,21 @@ export default function InductionTable({
             {viewButton}
             <button 
               className="text-green-600 hover:text-green-900 mr-3"
-              onClick={() => onCertificate(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'certificate')}
+              disabled={isActionLoading}
             >
-              Certificate
+              {isActionLoading ? (
+                <Icon name="fas fa-spinner fa-spin" className="mr-1" />
+              ) : 'Certificate'}
             </button>
             <button 
               className="text-gray-600 hover:text-gray-900"
-              onClick={() => onArchive(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'archive')}
+              disabled={isActionLoading}
             >
-              Archive
+              {isActionLoading ? (
+                <Icon name="fas fa-spinner fa-spin" className="mr-1" />
+              ) : 'Archive'}
             </button>
           </>
         );
@@ -108,15 +177,21 @@ export default function InductionTable({
             {viewButton}
             <button 
               className="text-green-600 hover:text-green-900 mr-3"
-              onClick={() => onContinue(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'continue')}
+              disabled={isActionLoading}
             >
-              Continue
+              {isActionLoading ? (
+                <Icon name="fas fa-spinner fa-spin" className="mr-1" />
+              ) : 'Continue'}
             </button>
             <button 
               className="text-gray-600 hover:text-gray-900"
-              onClick={() => onEdit(induction.id)}
+              onClick={() => handleEdit(induction.id)}
+              disabled={isActionLoading}
             >
-              Edit
+              {isActionLoading ? (
+                <Icon name="fas fa-spinner fa-spin" className="mr-1" />
+              ) : 'Edit'}
             </button>
           </>
         );
@@ -126,15 +201,21 @@ export default function InductionTable({
             {viewButton}
             <button 
               className="text-purple-600 hover:text-purple-900 mr-3"
-              onClick={() => onStart(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'start')}
+              disabled={isActionLoading}
             >
-              Start
+              {isActionLoading ? (
+                <Icon name="fas fa-spinner fa-spin" className="mr-1" />
+              ) : 'Start'}
             </button>
             <button 
               className="text-gray-600 hover:text-gray-900"
-              onClick={() => onEdit(induction.id)}
+              onClick={() => handleEdit(induction.id)}
+              disabled={isActionLoading}
             >
-              Edit
+              {isActionLoading ? (
+                <Icon name="fas fa-spinner fa-spin" className="mr-1" />
+              ) : 'Edit'}
             </button>
           </>
         );
@@ -144,15 +225,21 @@ export default function InductionTable({
             {viewButton}
             <button 
               className="text-orange-600 hover:text-orange-900 mr-3"
-              onClick={() => onRemind(induction.id)}
+              onClick={() => handleApiAction(induction.id, 'remind')}
+              disabled={isActionLoading}
             >
-              Remind
+              {isActionLoading ? (
+                <Icon name="fas fa-spinner fa-spin" className="mr-1" />
+              ) : 'Remind'}
             </button>
             <button 
               className="text-gray-600 hover:text-gray-900"
-              onClick={() => onEdit(induction.id)}
+              onClick={() => handleEdit(induction.id)}
+              disabled={isActionLoading}
             >
-              Edit
+              {isActionLoading ? (
+                <Icon name="fas fa-spinner fa-spin" className="mr-1" />
+              ) : 'Edit'}
             </button>
           </>
         );
@@ -171,12 +258,12 @@ export default function InductionTable({
               type="checkbox" 
               className="rounded border-gray-300"
               checked={allSelected}
-              onChange={(e) => onSelectAll(e.target.checked)}
+              onChange={(e) => handleSelectAll(e.target.checked)}
             />
             <span className="text-sm text-gray-600">Select All</span>
             <button 
               className="ml-4 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-              onClick={onBulkAction}
+              onClick={handleBulkAction}
               disabled={selectedInductions.length === 0}
             >
               Bulk Action
@@ -194,7 +281,7 @@ export default function InductionTable({
                   type="checkbox" 
                   className="rounded border-gray-300"
                   checked={allSelected}
-                  onChange={(e) => onSelectAll(e.target.checked)}
+                  onChange={(e) => handleSelectAll(e.target.checked)}
                 />
               </th>
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Employee</th>
@@ -214,7 +301,7 @@ export default function InductionTable({
                     type="checkbox" 
                     className="rounded border-gray-300"
                     checked={selectedInductions.includes(induction.id)}
-                    onChange={(e) => onSelectInduction(induction.id, e.target.checked)}
+                    onChange={(e) => handleSelectInduction(induction.id, e.target.checked)}
                   />
                 </td>
                 <td className="px-6 py-4">
@@ -275,7 +362,7 @@ export default function InductionTable({
         <div className="flex items-center space-x-2">
           <button 
             className={`px-3 py-1 ${currentPage === 1 ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'} rounded text-sm`}
-            onClick={() => currentPage > 1 && onPageChange(currentPage - 1)}
+            onClick={() => currentPage > 1 && handlePageChange(currentPage - 1)}
             disabled={currentPage === 1}
           >
             Previous
@@ -287,7 +374,7 @@ export default function InductionTable({
               <button 
                 key={page}
                 className={`px-3 py-1 ${currentPage === page ? 'bg-blue-600 text-white' : 'border border-gray-300 hover:bg-gray-50'} rounded text-sm`}
-                onClick={() => onPageChange(page)}
+                onClick={() => handlePageChange(page)}
               >
                 {page}
               </button>
@@ -296,7 +383,7 @@ export default function InductionTable({
           
           <button 
             className={`px-3 py-1 ${currentPage === totalPages ? 'bg-gray-100 text-gray-400 cursor-not-allowed' : 'border border-gray-300 text-gray-700 hover:bg-gray-50'} rounded text-sm`}
-            onClick={() => currentPage < totalPages && onPageChange(currentPage + 1)}
+            onClick={() => currentPage < totalPages && handlePageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
           >
             Next
