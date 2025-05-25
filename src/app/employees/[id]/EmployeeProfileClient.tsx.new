@@ -1,0 +1,124 @@
+'use client';
+
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import {
+  EmployeeHeader,
+  AlertSection,
+  ContactInformation,
+  LicensesSection,
+  InductionsSection,
+  HRInformation,
+  DocumentsSection,
+  BreadcrumbNav,
+  ProfileActions
+} from '@/components/employees/profile';
+
+interface EmployeeProfileClientProps {
+  data: {
+    employee: any;
+    licenses: any[];
+    inductions: any[];
+    documents: any[];
+    emergencyContact?: any;
+  };
+}
+
+export default function EmployeeProfileClient({ data }: EmployeeProfileClientProps) {
+  const router = useRouter();
+  const { employee, licenses = [], inductions = [], documents = [], emergencyContact } = data;
+
+  useEffect(() => {
+    // Initialize feather icons after component mounts
+    if (typeof window !== 'undefined') {
+      import('feather-icons').then(feather => {
+        feather.default.replace();
+      });
+    }
+  }, []);
+
+  // Calculate counts for the header
+  const licenseCount = licenses.length;
+  const documentCount = documents.length;
+  const inductionCount = inductions.length;
+
+  // Check for expiring licenses and inductions for alerts
+  const expiringLicenses = licenses.filter((license: any) => 
+    license.status === 'Expiring Soon' || license.status === 'Expired'
+  );
+
+  const expiringInductions = inductions.filter((induction: any) => 
+    induction.status === 'Expiring Soon' || induction.status === 'Expired'
+  );
+
+  // Prepare alerts for the AlertSection component
+  const alerts = [
+    ...expiringLicenses.map(license => ({
+      type: license.status === 'Expired' ? 'danger' : 'warning',
+      title: `License ${license.status}`,
+      message: `${license.name} ${license.status.toLowerCase()}`,
+      icon: 'alert-triangle' as const
+    })),
+    ...expiringInductions.map(induction => ({
+      type: 'warning' as const,
+      title: 'Induction Expiring Soon',
+      message: `${induction.name} expires soon`,
+      icon: 'clock' as const
+    }))
+  ];
+
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <BreadcrumbNav 
+        employeeId={employee.id}
+        employeeName={`${employee.firstName} ${employee.lastName}`}
+      />
+      
+      <div className="mt-6">
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-bold text-gray-900">Employee Profile</h1>
+          <ProfileActions employeeId={employee.id} />
+        </div>
+        
+        <EmployeeHeader 
+          employee={employee} 
+          licenseCount={licenseCount}
+          documentCount={documentCount}
+          inductionCount={inductionCount}
+        />
+        
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            {alerts.length > 0 && <AlertSection alerts={alerts} />}
+            
+            <LicensesSection 
+              licenses={licenses} 
+              employeeId={employee.id}
+            />
+            
+            <InductionsSection 
+              inductions={inductions} 
+              employeeId={employee.id}
+            />
+            
+            <DocumentsSection 
+              documents={documents} 
+              employeeId={employee.id}
+            />
+          </div>
+          
+          <div className="space-y-6">
+            <ContactInformation 
+              employee={employee} 
+              emergencyContact={emergencyContact}
+            />
+            
+            <HRInformation 
+              employee={employee}
+            />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

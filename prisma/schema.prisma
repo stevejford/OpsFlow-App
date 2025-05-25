@@ -1,0 +1,115 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  clerkId       String         @unique
+  email         String         @unique
+  name          String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  employees     Employee[]
+  licenses      License[]
+  credentials   Credential[]
+  tasks         Task[]
+  documents     Document[]
+  isAdmin       Boolean        @default(false)
+}
+
+model Employee {
+  id              String    @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String    @unique
+  phone           String?
+  position        String
+  department      String
+  startDate       DateTime
+  endDate         DateTime?
+  emergencyName   String?
+  emergencyPhone  String?
+  emergencyEmail  String?
+  notes           String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  createdBy       User      @relation(fields: [createdById], references: [id])
+  createdById     String
+  licenses        License[]
+  credentials     Credential[]
+  tasks           Task[]
+  documents       Document[]
+}
+
+model License {
+  id            String    @id @default(cuid())
+  name          String
+  licenseNumber String
+  issuedBy      String
+  issuedDate    DateTime
+  expiryDate    DateTime
+  status        String    // Active, Expired, Pending
+  notes         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  employee      Employee  @relation(fields: [employeeId], references: [id])
+  employeeId    String
+  createdBy     User      @relation(fields: [createdById], references: [id])
+  createdById   String
+  documents     Document[]
+}
+
+model Credential {
+  id          String    @id @default(cuid())
+  name        String
+  username    String
+  password    String
+  url         String?
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  employeeId  String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdById String
+}
+
+model Task {
+  id          String    @id @default(cuid())
+  title       String
+  description String?
+  status      String    // Todo, InProgress, Done
+  priority    String    // Low, Medium, High
+  dueDate     DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee  @relation(fields: [employeeId], references: [id])
+  employeeId  String
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdById String
+}
+
+model Document {
+  id          String    @id @default(cuid())
+  name        String
+  fileUrl     String
+  fileType    String
+  fileSize    Int
+  notes       String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  employee    Employee? @relation(fields: [employeeId], references: [id])
+  employeeId  String?
+  license     License?  @relation(fields: [licenseId], references: [id])
+  licenseId   String?
+  createdBy   User      @relation(fields: [createdById], references: [id])
+  createdById String
+}

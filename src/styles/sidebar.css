@@ -1,0 +1,237 @@
+/* Sidebar Styles */
+.sidebar {
+  transition: all 0.3s ease;
+  width: 280px;
+  z-index: 30;
+  box-shadow: 0 0 15px rgba(0, 0, 0, 0.05);
+  background-color: white;
+}
+
+.sidebar.collapsed {
+  width: 64px;
+}
+
+.sidebar-item {
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  margin: 4px 0;
+  border-radius: 8px;
+  height: 40px;
+  position: relative;
+}
+
+.sidebar-item:hover {
+  background-color: #f3f4f6;
+}
+
+.sidebar-item.active {
+  background-color: #3b82f6;
+  color: white;
+  font-weight: 500;
+}
+
+.sidebar-item.active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background-color: #2563eb;
+  border-radius: 0 2px 2px 0;
+}
+
+.sidebar.collapsed .sidebar-item.active {
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar.collapsed .sidebar-item.active {
+  background-color: #3b82f6;
+}
+
+.sidebar.collapsed .sidebar-item.active svg {
+  stroke: white;
+}
+
+.sidebar.collapsed .sidebar-item.active::before {
+  display: none;
+}
+
+.sidebar.collapsed .sidebar-item.active::after {
+  display: none;
+}
+
+.sidebar-item.active:hover {
+  background-color: #2563eb;
+}
+
+/* Add tooltips for collapsed sidebar */
+.sidebar.collapsed .sidebar-item {
+  position: relative;
+}
+
+.sidebar.collapsed .sidebar-item:hover::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  left: 100%;
+  top: 50%;
+  transform: translateY(-50%);
+  background-color: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  margin-left: 10px;
+}
+
+.sidebar-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin: 0 12px;
+}
+
+.sidebar.collapsed .sidebar-item {
+  justify-content: center;
+  padding-left: 0;
+  padding-right: 0;
+  margin-left: 8px;
+  margin-right: 8px;
+  width: 48px;
+  height: 40px;
+}
+
+.sidebar.collapsed .sidebar-icon {
+  margin: 0 auto;
+}
+
+.sidebar-text {
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  white-space: nowrap;
+}
+
+.sidebar.collapsed .sidebar-text {
+  opacity: 0;
+  visibility: hidden;
+  display: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+.main-content {
+  transition: margin-left 0.3s ease;
+  margin-left: 280px;
+  min-height: 100vh;
+  background-color: #f9fafb;
+}
+
+.main-content.expanded {
+  margin-left: 64px;
+}
+
+.menu-toggle {
+  transition: transform 0.3s ease;
+}
+
+.menu-toggle.rotated {
+  transform: rotate(180deg);
+}
+
+/* Fix for the sidebar icons */
+.sidebar svg,
+.sidebar span.icon {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  stroke-width: 2px;
+}
+
+.sidebar-item.active svg {
+  stroke: white;
+}
+
+/* Standardize icon sizes */
+.sidebar svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* Group sections with visual separators */
+.sidebar-section {
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  position: relative;
+}
+
+.sidebar-section:not(:last-child) {
+  border-bottom: 1px solid #f3f4f6;
+}
+
+/* Fix for user profile in sidebar */
+.sidebar .user-profile {
+  border-top: 1px solid #e5e7eb;
+  padding: 12px 16px;
+  background-color: white;
+}
+
+.sidebar.collapsed .user-profile {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.sidebar.collapsed .user-profile .sidebar-text {
+  display: none;
+}
+
+/* Fix for section headers in sidebar */
+.sidebar .section-header {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: #9ca3af;
+  padding: 12px 16px 8px;
+  letter-spacing: 0.05em;
+  margin-top: 8px;
+}
+
+.sidebar.collapsed .section-header {
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.sidebar.collapsed .section-header span {
+  display: none;
+}
+
+.sidebar.collapsed .section-header::after {
+  content: '•••';
+  color: #9ca3af;
+  font-size: 8px;
+  letter-spacing: 2px;
+}
+
+@media (max-width: 1024px) {
+  .main-content {
+    margin-left: 0;
+  }
+  
+  .sidebar {
+    transform: translateX(-100%);
+  }
+  
+  .sidebar.open {
+    transform: translateX(0);
+  }
+}
