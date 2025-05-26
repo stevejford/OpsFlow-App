@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/neon-operations';
 import { CreateEmployee } from '@/lib/db/schema';
+import { logActivity, getRequestMetadata } from '@/lib/utils/activityLogger';
 
 export async function GET() {
   try {
@@ -28,6 +29,26 @@ export async function POST(request: Request) {
     }
 
     const newEmployee = await db.employees.create(employeeData);
+    
+    // Log the activity
+    const { ipAddress, userAgent } = getRequestMetadata(request);
+    await logActivity({
+      userId: newEmployee.id, // Assuming the authenticated user's ID is available here
+      action: 'create',
+      entityType: 'employee',
+      entityId: newEmployee.id,
+      newValues: {
+        firstName: newEmployee.first_name,
+        lastName: newEmployee.last_name,
+        email: newEmployee.email,
+        position: newEmployee.position,
+        department: newEmployee.department,
+        status: newEmployee.status
+      },
+      ipAddress,
+      userAgent
+    });
+
     return NextResponse.json(newEmployee, { status: 201 });
   } catch (error) {
     console.error('Error creating employee:', error);

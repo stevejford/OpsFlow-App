@@ -1,8 +1,8 @@
 import dotenv from 'dotenv';
 import path from 'path';
 
-// Load environment variables from .env.local file
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+// Load environment variables from .env file
+dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 // Check if we're in development mode
 const isDevelopment = process.env.NODE_ENV === 'development';

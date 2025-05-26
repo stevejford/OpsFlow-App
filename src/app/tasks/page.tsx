@@ -11,123 +11,7 @@ import { BoardStats } from '@/components/tasks/BoardStats';
 import { TeamFilters } from '@/components/tasks/TeamFilters';
 import { KanbanBoard } from '@/components/tasks/KanbanBoard';
 import { Task } from '@/types/task';
-
-// Sample data
-const initialTasks = {
-  main: {
-    todo: [
-      {
-        id: '1',
-        title: 'Implement user authentication system',
-        description: 'Set up OAuth integration and secure user login functionality for the platform',
-        priority: 'high',
-        assignee: { id: '1', name: 'John Smith', initials: 'JS', color: 'blue-500' },
-        dueDate: '2023-12-20',
-      },
-      {
-        id: '2',
-        title: 'Design user dashboard mockups',
-        description: 'Create wireframes and visual designs for the main dashboard interface',
-        priority: 'medium',
-        assignee: { id: '2', name: 'Sarah Wilson', initials: 'SW', color: 'green-500' },
-        dueDate: '2023-12-22',
-      },
-      {
-        id: '3',
-        title: 'Update project documentation',
-        description: 'Review and update the project README and API documentation',
-        priority: 'low',
-        assignee: { id: '3', name: 'Mike Johnson', initials: 'MJ', color: 'purple-500' },
-        dueDate: '2023-12-25',
-      },
-    ],
-    inProgress: [
-      {
-        id: '4',
-        title: 'Database schema optimization',
-        description: 'Optimize database queries and improve performance',
-        priority: 'high',
-        assignee: { id: '1', name: 'John Smith', initials: 'JS', color: 'blue-500' },
-        dueDate: '2023-12-18',
-      },
-      {
-        id: '5',
-        title: 'API integration testing',
-        description: 'Test all API endpoints and ensure proper error handling',
-        priority: 'medium',
-        assignee: { id: '3', name: 'Mike Johnson', initials: 'MJ', color: 'purple-500' },
-        dueDate: '2023-12-19',
-      },
-    ],
-    review: [
-      {
-        id: '6',
-        title: 'Frontend component refactoring',
-        description: 'Refactor React components for better reusability',
-        priority: 'medium',
-        assignee: { id: '2', name: 'Sarah Wilson', initials: 'SW', color: 'green-500' },
-        dueDate: '2023-12-17',
-      },
-    ],
-    done: [
-      {
-        id: '7',
-        title: 'Set up CI/CD pipeline',
-        description: 'Configure automated testing and deployment',
-        priority: 'low',
-        assignee: { id: '1', name: 'John Smith', initials: 'JS', color: 'blue-500' },
-        dueDate: '2023-12-15',
-      },
-      {
-        id: '8',
-        title: 'Security audit completion',
-        description: 'Complete security review and fix vulnerabilities',
-        priority: 'high',
-        assignee: { id: '3', name: 'Mike Johnson', initials: 'MJ', color: 'purple-500' },
-        dueDate: '2023-12-14',
-      },
-    ],
-  },
-  marketing: {
-    todo: [
-      {
-        id: 'm1',
-        title: 'Create social media campaign',
-        description: 'Develop a comprehensive social media strategy for Q1',
-        priority: 'high',
-        assignee: { id: '2', name: 'Sarah Wilson', initials: 'SW', color: 'green-500' },
-        dueDate: '2023-12-28',
-      }
-    ],
-    inProgress: [
-      {
-        id: 'm2',
-        title: 'Website content update',
-        description: 'Refresh website copy and update product descriptions',
-        priority: 'medium',
-        assignee: { id: '3', name: 'Mike Johnson', initials: 'MJ', color: 'purple-500' },
-        dueDate: '2023-12-22',
-      }
-    ],
-    review: [],
-    done: []
-  },
-  hr: {
-    todo: [
-      {
-        id: 'h1',
-        title: 'Annual performance reviews',
-        description: 'Schedule and prepare for annual employee performance reviews',
-        priority: 'high',
-        assignee: { id: '1', name: 'John Smith', initials: 'JS', color: 'blue-500' },
-        dueDate: '2023-12-30',
-      }
-    ],
-    inProgress: [],
-    review: [],
-    done: []
-  }
-};
+import { getTasks } from '@/lib/data/tasks';
 
 export default function TasksPage() {
   const { isLoaded, userId } = useAuth();
@@ -135,16 +19,17 @@ export default function TasksPage() {
   const [isClient, setIsClient] = useState(false);
   const [activeBoard, setActiveBoard] = useState('main');
   const [isEditing, setIsEditing] = useState(false);
-  const [tasks, setTasks] = useState<typeof initialTasks>(initialTasks);
+  const [tasks, setTasks] = useState<any>({
+    main: { todo: [], inProgress: [], review: [], done: [] }
+  });
   const [boards, setBoards] = useState([
-    { id: 'main', label: 'Development Sprint' },
-    { id: 'marketing', label: 'Marketing Tasks' },
-    { id: 'hr', label: 'HR & Admin' }
+    { id: 'main', label: 'All Tasks' }
   ]);
   const [showNewBoardModal, setShowNewBoardModal] = useState(false);
   const [newBoardName, setNewBoardName] = useState('');
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [newTaskColumn, setNewTaskColumn] = useState('');
+  const [loading, setLoading] = useState(true);
 
   // Team members for the filters
   const teamMembers = [
@@ -185,6 +70,31 @@ export default function TasksPage() {
       feather.replace();
     }
   }, [isClient, activeBoard, showNewBoardModal, showNewTaskModal, dropdownOpen]);
+
+  useEffect(() => {
+    const fetchTasks = async () => {
+      try {
+        const data = await getTasks();
+        
+        // Organize tasks by status
+        const organizedTasks = {
+          main: {
+            todo: data.filter((task: any) => task.status === 'pending'),
+            inProgress: data.filter((task: any) => task.status === 'in_progress'),
+            review: data.filter((task: any) => task.status === 'review'),
+            done: data.filter((task: any) => task.status === 'completed')
+          }
+        };
+        
+        setTasks(organizedTasks);
+        setLoading(false);
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+        setLoading(false);
+      }
+    };
+    fetchTasks();
+  }, []);
 
   // Handle board change
   const handleBoardChange = (board: string) => {
@@ -427,14 +337,29 @@ export default function TasksPage() {
         </div>
 
         {/* Kanban Board */}
-        <KanbanBoard 
-          tasks={tasks} 
-          activeBoard={activeBoard} 
-          isEditing={isEditing}
-          onDeleteColumn={handleDeleteColumn}
-          onAddTask={handleAddTask}
-          setTasks={setTasks}
-        />
+        {loading ? (
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+              {[1, 2, 3, 4].map((i) => (
+                <div key={i} className="bg-white p-4 rounded-lg shadow-md h-28">
+                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-2"></div>
+                  <div className="h-8 bg-gray-200 rounded w-1/4"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <KanbanBoard 
+            tasks={tasks} 
+            activeBoard={activeBoard} 
+            isEditing={isEditing}
+            onDeleteColumn={handleDeleteColumn}
+            onAddTask={handleAddTask}
+            setTasks={setTasks}
+          />
+        )}
         
         {/* New Task Modal */}
         {showNewTaskModal && (

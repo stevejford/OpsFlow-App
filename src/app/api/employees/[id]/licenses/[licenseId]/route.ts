@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/neon-operations';
 import { query } from '@/lib/db/neon-db';
+import { logActivity, getRequestMetadata } from '@/lib/utils/activityLogger';
 
 interface Params {
   params: {
@@ -51,21 +52,23 @@ export async function PUT(request: Request, { params }: Params) {
       );
     }
 
-    // First verify the license belongs to the employee using a direct query
-    const verifyQuery = `
-      SELECT id FROM licenses 
+    // First get the current license data for logging
+    const getLicenseQuery = `
+      SELECT * FROM licenses 
       WHERE id = $1 AND employee_id = $2
     `;
     
-    const { rows: verifyRows } = await query(verifyQuery, [licenseId, id]);
+    const { rows: licenseRows } = await query(getLicenseQuery, [licenseId, id]);
     
-    if (verifyRows.length === 0) {
+    if (licenseRows.length === 0) {
       console.log(`License not found or doesn't belong to employee ${id}`);
       return NextResponse.json(
         { error: 'License not found for this employee' },
         { status: 404 }
       );
     }
+    
+    const currentLicense = licenseRows[0];
     
     // Define interface for notes data
     interface NotesObject {
@@ -125,7 +128,41 @@ export async function PUT(request: Request, { params }: Params) {
       
       if (rows.length > 0) {
         console.log(`Successfully updated license ${licenseId}`);
-        return NextResponse.json(rows[0]);
+        
+        // Fetch the updated license
+        const updatedLicense = {
+          ...currentLicense,
+          ...dbUpdateData
+        };
+        
+        console.log('License updated successfully:', updatedLicense);
+        
+        // Log the activity
+        const { ipAddress, userAgent } = getRequestMetadata(request);
+        await logActivity({
+          userId: id,
+          action: 'update',
+          entityType: 'license',
+          entityId: licenseId,
+          oldValues: {
+            name: currentLicense.name,
+            licenseNumber: currentLicense.license_number,
+            issueDate: currentLicense.issue_date,
+            expiryDate: currentLicense.expiry_date,
+            status: currentLicense.status
+          },
+          newValues: {
+            name: updatedLicense.name,
+            licenseNumber: updatedLicense.license_number,
+            issueDate: updatedLicense.issue_date,
+            expiryDate: updatedLicense.expiry_date,
+            status: updatedLicense.status
+          },
+          ipAddress,
+          userAgent
+        });
+        
+        return NextResponse.json(updatedLicense);
       } else {
         console.error(`No rows affected when updating license ${licenseId}`);
         return NextResponse.json(
@@ -155,10 +192,26 @@ export async function DELETE(request: Request, { params }: Params) {
     
     console.log(`Attempting to delete license with ID: ${licenseId}`);
     
-    // Use a single direct query to delete the license
-    // No need to verify first, just attempt the deletion
+    // First, get the license data for logging
+    const getLicenseQuery = `
+      SELECT * FROM licenses 
+      WHERE id = $1
+    `;
+    
+    const { rows: licenseRows } = await query(getLicenseQuery, [licenseId]);
+    
+    if (licenseRows.length === 0) {
+      console.log(`No license found with ID: ${licenseId}`);
+      return NextResponse.json(
+        { error: 'License not found' },
+        { status: 404 }
+      );
+    }
+    
+    const licenseToDelete = licenseRows[0];
+    
+    // Now delete the license
     try {
-      // Use a raw SQL query for maximum reliability
       const deleteQuery = `DELETE FROM licenses WHERE id = $1 RETURNING id`;
       console.log(`Executing delete query: ${deleteQuery} with ID: ${licenseId}`);
       
@@ -167,14 +220,26 @@ export async function DELETE(request: Request, { params }: Params) {
       
       if (result && result.length > 0) {
         console.log(`Successfully deleted license ${licenseId}`);
+        
+        // Log the activity
+        const { ipAddress, userAgent } = getRequestMetadata(request);
+        await logActivity({
+          userId: id,
+          action: 'delete',
+          entityType: 'license',
+          entityId: licenseId,
+          oldValues: {
+            name: licenseToDelete.name,
+            licenseNumber: licenseToDelete.license_number,
+            issueDate: licenseToDelete.issue_date,
+            expiryDate: licenseToDelete.expiry_date,
+            status: licenseToDelete.status
+          },
+          ipAddress,
+          userAgent
+        });
+        
         return NextResponse.json({ success: true, message: 'License deleted successfully' });
-      } else {
-        // If no rows returned, the license wasn't found
-        console.log(`No license found with ID: ${licenseId}`);
-        return NextResponse.json(
-          { error: 'License not found' },
-          { status: 404 }
-        );
       }
     } catch (sqlError: any) {
       console.error('SQL Error in DELETE operation:', sqlError);

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db/neon-operations';
 import { License } from '@/lib/db/schema';
 import { query, testConnection } from '@/lib/db/neon-db';
+import { logActivity, getRequestMetadata } from '@/lib/utils/activityLogger';
 
 interface Params {
   params: {
@@ -140,10 +141,30 @@ export async function POST(request: Request, { params }: Params) {
       dbLicenseData.notes
     ];
     
+    // Execute the query
     const result = await query(insertQuery, values);
     const newLicense = result.rows[0];
     
     console.log('License created successfully:', newLicense);
+    
+    // Log the activity
+    const { ipAddress, userAgent } = getRequestMetadata(request);
+    await logActivity({
+      userId: id, // In a real app, this would be the authenticated user's ID
+      action: 'create',
+      entityType: 'license',
+      entityId: newLicense.id,
+      newValues: {
+        name: newLicense.name,
+        licenseNumber: newLicense.license_number,
+        issueDate: newLicense.issue_date,
+        expiryDate: newLicense.expiry_date,
+        status: newLicense.status
+      },
+      ipAddress,
+      userAgent
+    });
+    
     return NextResponse.json(newLicense, { status: 201 });
     
   } catch (error) {
