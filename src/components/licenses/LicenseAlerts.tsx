@@ -1,5 +1,8 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Icon from '@/components/ui/Icon';
+import { formatExpirationDate } from '@/lib/utils/dateFormats';
 
 export interface AlertLicense {
   id: string;
@@ -16,6 +19,12 @@ interface LicenseAlertsProps {
 }
 
 export default function LicenseAlerts({ criticalLicenses, onNotify }: LicenseAlertsProps) {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   if (criticalLicenses.length === 0) {
     return null;
   }
@@ -32,10 +41,16 @@ export default function LicenseAlerts({ criticalLicenses, onNotify }: LicenseAle
                 <div>
                   <span className="font-medium text-red-900">{license.employeeName} - {license.licenseName}</span>
                   <span className="text-red-700 text-sm ml-2">
-                    {license.isExpired 
-                      ? `Expired ${Math.abs(license.daysUntilExpiry)} days ago`
-                      : `Expires in ${license.daysUntilExpiry} days (${new Date(license.expiryDate).toLocaleDateString()})`
-                    }
+                    {isClient ? (
+                      license.isExpired 
+                        ? `Expired ${Math.abs(license.daysUntilExpiry)} days ago`
+                        : formatExpirationDate(license.expiryDate)
+                    ) : (
+                      // Fallback for server rendering - use a simple format
+                      license.isExpired 
+                        ? `Expired ${Math.abs(license.daysUntilExpiry)} days ago`
+                        : `Expires in ${license.daysUntilExpiry} days`
+                    )}
                   </span>
                 </div>
                 <button 

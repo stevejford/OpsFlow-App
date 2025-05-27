@@ -102,6 +102,51 @@ Stores emergency contact information for employees.
 | created_at | TIMESTAMPTZ | Record creation timestamp |
 | updated_at | TIMESTAMPTZ | Last update timestamp |
 
+### 6. Credentials Table
+Stores secure credentials for various systems and services.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| name | VARCHAR(255) | Name of the credential |
+| category | VARCHAR(50) | Category (business/website/employee/api/other) |
+| username | VARCHAR(255) | Username or email |
+| password | TEXT | Encrypted password |
+| url | TEXT | Associated URL (optional) |
+| notes | TEXT | Additional information |
+| tags | TEXT[] | Array of tags for filtering |
+| expiration_date | DATE | When the credential expires (if applicable) |
+| strength | VARCHAR(20) | Password strength (weak/medium/strong) |
+| status | VARCHAR(20) | Status (active/inactive/expired) |
+| created_by | UUID | User who created the credential |
+| created_at | TIMESTAMPTZ | Record creation timestamp |
+| updated_at | TIMESTAMPTZ | Last update timestamp |
+| last_accessed | TIMESTAMPTZ | When the credential was last accessed |
+
+### 7. Credential Categories Table
+Defines categories for organizing credentials.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| name | VARCHAR(100) | Category name |
+| description | TEXT | Category description |
+| created_at | TIMESTAMPTZ | Record creation timestamp |
+| updated_at | TIMESTAMPTZ | Last update timestamp |
+
+### 8. Credential Access Logs Table
+Tracks access to sensitive credential information for audit purposes.
+
+| Column | Type | Description |
+|--------|------|-------------|
+| id | UUID | Primary key |
+| credential_id | UUID | Foreign key to credentials.id |
+| user_id | UUID | User who accessed the credential |
+| action | VARCHAR(50) | Action performed (view/edit/copy/delete) |
+| ip_address | VARCHAR(50) | IP address of the user |
+| user_agent | TEXT | Browser/device information |
+| accessed_at | TIMESTAMPTZ | When the access occurred |
+
 ## Database Operations
 
 ### Employee Operations
@@ -133,6 +178,23 @@ Stores emergency contact information for employees.
 - `setAsPrimary(id: string, employeeId: string): Promise<EmergencyContact>` - Set a contact as primary
 - `delete(id: string): Promise<boolean>` - Delete an emergency contact
 
+### Credential Operations
+- `create(credential: CreateCredential): Promise<Credential>` - Create a new credential
+- `getAll(filters?: CredentialFilters): Promise<Credential[]>` - Get all credentials with optional filtering
+- `getById(id: string): Promise<Credential | null>` - Get credential by ID
+- `update(id: string, updates: Partial<UpdateCredential>): Promise<Credential | null>` - Update credential details
+- `delete(id: string): Promise<boolean>` - Delete a credential
+- `search(term: string): Promise<Credential[]>` - Search credentials by name, username, or tags
+- `getByCategory(category: string): Promise<Credential[]>` - Get credentials by category
+- `getExpiring(days: number): Promise<Credential[]>` - Get credentials expiring soon
+- `logAccess(credentialId: string, userId: string, action: string): Promise<void>` - Log credential access for audit
+
+### Credential Category Operations
+- `create(category: CreateCredentialCategory): Promise<CredentialCategory>` - Create a new category
+- `getAll(): Promise<CredentialCategory[]>` - Get all credential categories
+- `update(id: string, updates: Partial<UpdateCredentialCategory>): Promise<CredentialCategory | null>` - Update category
+- `delete(id: string): Promise<boolean>` - Delete a category
+
 ## Example Usage
 
 ```typescript
@@ -161,6 +223,26 @@ const updatedEmployee = await db.employees.update(newEmployee.id, {
   position: 'Senior Project Manager',
   department: 'Operations Leadership'
 });
+
+// Create a new credential
+const newCredential = await db.credentials.create({
+  name: 'Company Email',
+  category: 'business',
+  username: 'jane.smith@company.com',
+  password: 'securePassword123!', // Will be encrypted before storage
+  url: 'https://mail.company.com',
+  tags: ['email', 'important'],
+  status: 'active'
+});
+
+// Search credentials by tag
+const emailCredentials = await db.credentials.search('email');
+
+// Get credentials by category
+const businessCredentials = await db.credentials.getByCategory('business');
+
+// Log credential access
+await db.credentials.logAccess(newCredential.id, userId, 'view');
 ```
 
 ## Best Practices
@@ -184,6 +266,30 @@ const updatedEmployee = await db.employees.update(newEmployee.id, {
    - Use parameterized queries to prevent SQL injection
    - Validate all user inputs
    - Implement proper access controls at the application level
+   - Encrypt sensitive data like passwords before storage
+   - Implement audit logging for sensitive operations
+
+## Credential Security Considerations
+
+1. **Password Encryption**:
+   - Passwords should be encrypted at rest using a strong encryption algorithm
+   - Use a dedicated encryption key that is securely stored
+   - Consider using a hardware security module (HSM) for encryption key management
+
+2. **Access Control**:
+   - Implement role-based access control for credential management
+   - Restrict access to credentials based on user roles and permissions
+   - Require re-authentication for sensitive operations
+
+3. **Audit Logging**:
+   - Log all access to credential information
+   - Include user ID, timestamp, action performed, and IP address
+   - Regularly review audit logs for suspicious activity
+
+4. **Data Retention**:
+   - Implement a policy for credential rotation and expiration
+   - Automatically flag credentials that haven't been rotated in a defined period
+   - Securely delete expired or unused credentials
 
 ## Troubleshooting
 

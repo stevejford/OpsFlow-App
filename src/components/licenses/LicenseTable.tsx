@@ -1,5 +1,8 @@
-import React from 'react';
+'use client';
+
+import React, { useState, useEffect } from 'react';
 import Icon from '@/components/ui/Icon';
+import { formatDate } from '@/lib/utils/dateFormats';
 
 export interface License {
   id: string;
@@ -45,6 +48,12 @@ export default function LicenseTable({
   onPageChange,
   itemsPerPage
 }: LicenseTableProps) {
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   const allSelected = licenses.length > 0 && selectedLicenses.length === licenses.length;
   
   const getStatusBadge = (status: string, daysUntilExpiry?: number) => {
@@ -147,10 +156,10 @@ export default function LicenseTable({
                   <div className="text-sm text-gray-500">{license.licenseDescription}</div>
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-900">
-                  {new Date(license.issueDate).toLocaleDateString()}
+                  {isClient ? formatDate(license.issueDate) : 'Loading...'}
                 </td>
                 <td className="px-6 py-4 text-sm text-gray-900">
-                  {new Date(license.expiryDate).toLocaleDateString()}
+                  {isClient ? formatDate(license.expiryDate) : 'Loading...'}
                 </td>
                 <td className="px-6 py-4">
                   {getStatusBadge(license.status, license.daysUntilExpiry)}

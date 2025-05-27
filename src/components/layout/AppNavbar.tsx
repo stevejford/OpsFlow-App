@@ -16,15 +16,13 @@ interface AppNavbarProps {
     onClick: () => void;
   }[];
   showBreadcrumbs?: boolean;
-  onToggleSidebar?: string; // Using a string event name for serialization
 }
 
 export const AppNavbar: React.FC<AppNavbarProps> = ({ 
   title,
   actions,
   tabs,
-  showBreadcrumbs = true,
-  onToggleSidebar
+  showBreadcrumbs = true
 }) => {
   const { isSignedIn } = useAuth();
   // No need for Feather icons initialization since we're using our custom Icon component
@@ -71,22 +69,6 @@ export const AppNavbar: React.FC<AppNavbarProps> = ({
           <div className="flex justify-between items-center">
             {/* Logo and Main Navigation */}
             <div className="flex items-center">
-              {onToggleSidebar && (
-                <button 
-                  onClick={() => {
-                    // Dispatch a custom event that the sidebar can listen for
-                    const event = new CustomEvent(onToggleSidebar);
-                    window.dispatchEvent(event);
-                  }}
-                  className="mr-4 p-2 rounded-md hover:bg-blue-700 transition-colors flex items-center justify-center relative z-50"
-                  aria-label="Toggle Sidebar"
-                  style={{ position: 'absolute', left: '16px' }}
-                >
-                  <svg className="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </button>
-              )}
               <Link href="/dashboard" className="flex-shrink-0 py-4">
                 <span className="text-xl font-bold">OpsFlow</span>
               </Link>
