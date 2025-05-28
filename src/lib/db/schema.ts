@@ -65,6 +65,30 @@ export interface EmergencyContact {
   updated_at: Date;
 }
 
+export interface Folder {
+  id: string;
+  name: string;
+  parent_id: string | null;
+  path: string;
+  description?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface DocumentFile {
+  id: string;
+  folder_id: string;
+  name: string;
+  type: string;
+  file_url: string;
+  size: number;
+  upload_date: Date;
+  uploaded_by?: string;
+  notes?: string;
+  created_at: Date;
+  updated_at: Date;
+}
+
 // Type for creating a new employee (omits auto-generated fields)
 export type CreateEmployee = Omit<Employee, 'id' | 'created_at' | 'updated_at'>;
 

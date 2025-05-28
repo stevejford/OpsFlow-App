@@ -1,5 +1,5 @@
-import { query } from './index';
-import { Employee, License, Induction, Document, EmergencyContact } from './schema';
+import { query } from './neon-db';
+import { Employee, License, Induction, Document, EmergencyContact, Folder, DocumentFile } from './schema';
 
 export async function initializeDatabase() {
   try {
@@ -52,7 +52,36 @@ export async function initializeDatabase() {
       );
     `);
 
-    // Create documents table
+    // Create folders table
+    await query(`
+      CREATE TABLE IF NOT EXISTS folders (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        description TEXT,
+        parent_id UUID REFERENCES folders(id) ON DELETE CASCADE,
+        path VARCHAR(500) NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+
+    // Create document_files table
+    await query(`
+      CREATE TABLE IF NOT EXISTS document_files (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        folder_id UUID REFERENCES folders(id) ON DELETE CASCADE,
+        name VARCHAR(255) NOT NULL,
+        file_url TEXT NOT NULL,
+        file_size BIGINT,
+        file_type VARCHAR(100),
+        upload_date TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        notes TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `);
+
+    // Create documents table (for employee-specific documents)
     await query(`
       CREATE TABLE IF NOT EXISTS documents (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -83,6 +112,12 @@ export async function initializeDatabase() {
       );
     `);
 
+    // Create indexes for better performance
+    await query('CREATE INDEX IF NOT EXISTS idx_folders_parent_id ON folders(parent_id)');
+    await query('CREATE INDEX IF NOT EXISTS idx_folders_path ON folders(path)');
+    await query('CREATE INDEX IF NOT EXISTS idx_document_files_folder_id ON document_files(folder_id)');
+    await query('CREATE INDEX IF NOT EXISTS idx_document_files_name ON document_files(name)');
+
     // Create a function to update the updated_at timestamp
     await query(`
       CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -95,7 +130,7 @@ export async function initializeDatabase() {
     `);
 
     // Create triggers to update updated_at on each table
-    const tables = ['employees', 'licenses', 'inductions', 'documents', 'emergency_contacts'];
+    const tables = ['employees', 'licenses', 'inductions', 'documents', 'emergency_contacts', 'folders', 'document_files'];
     for (const table of tables) {
       await query(`
         DROP TRIGGER IF EXISTS update_${table}_updated_at ON ${table};
@@ -105,6 +140,25 @@ export async function initializeDatabase() {
         EXECUTE FUNCTION update_updated_at_column();
       `);
     }
+
+    // Insert default folders
+    await query(`
+      INSERT INTO folders (name, description, parent_id, path) 
+      SELECT 'HR Policies', 'Human Resources policies and procedures', NULL, '/HR Policies'
+      WHERE NOT EXISTS (SELECT 1 FROM folders WHERE name = 'HR Policies' AND parent_id IS NULL)
+    `);
+
+    await query(`
+      INSERT INTO folders (name, description, parent_id, path) 
+      SELECT 'Contracts', 'Employee contracts and agreements', NULL, '/Contracts'
+      WHERE NOT EXISTS (SELECT 1 FROM folders WHERE name = 'Contracts' AND parent_id IS NULL)
+    `);
+
+    await query(`
+      INSERT INTO folders (name, description, parent_id, path) 
+      SELECT 'Training Materials', 'Training documents and resources', NULL, '/Training Materials'
+      WHERE NOT EXISTS (SELECT 1 FROM folders WHERE name = 'Training Materials' AND parent_id IS NULL)
+    `);
 
     console.log('Database schema initialized successfully');
     return true;

@@ -1,12 +1,13 @@
 import { Inter } from 'next/font/google';
-import { ClerkProvider } from '@clerk/nextjs';
 import './globals.css';
 import '@/styles/sidebar.css';
 import SidebarWrapper from '@/components/layout/SidebarWrapper';
+import { DocumentSettingsProvider } from '@/contexts/DocumentSettingsContext';
 import { Toaster } from 'sonner';
 import { NextSSRPlugin } from "@uploadthing/react/next-ssr-plugin";
 import { extractRouterConfig } from "uploadthing/server";
 import { ourFileRouter } from "@/app/api/uploadthing/core";
+import { ClerkProvider } from '@clerk/nextjs';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -45,7 +46,9 @@ export default function RootLayout({
              */
             routerConfig={extractRouterConfig(ourFileRouter)}
           />
-          <SidebarWrapper>{children}</SidebarWrapper>
+          <DocumentSettingsProvider>
+            <SidebarWrapper>{children}</SidebarWrapper>
+          </DocumentSettingsProvider>
           <Toaster position="top-right" richColors closeButton />
         </body>
       </html>

@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse, NextRequest } from 'next/server';
 import { db } from '@/lib/db/neon-operations';
 import { CreateEmployee } from '@/lib/db/schema';
 import { logActivity, getRequestMetadata } from '@/lib/utils/activityLogger';
@@ -16,7 +16,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   try {
     const employeeData: CreateEmployee = await request.json();
     

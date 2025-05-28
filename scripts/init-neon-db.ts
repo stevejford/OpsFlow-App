@@ -1,6 +1,6 @@
-import { neon } from '@neondatabase/serverless';
 import dotenv from 'dotenv';
 import path from 'path';
+import { neon } from '@neondatabase/serverless';
 
 // Load environment variables
 dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
@@ -111,6 +111,53 @@ async function main() {
       );
     `;
     console.log('✅ Created emergency_contacts table');
+
+    // Create folders table
+    console.log('\n🔄 Creating folders table...');
+    await sql`
+      CREATE TABLE IF NOT EXISTS folders (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        parent_id UUID REFERENCES folders(id) ON DELETE CASCADE,
+        path TEXT NOT NULL,
+        description TEXT,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+    console.log('✅ Created folders table');
+
+    // Create documents table for general document management
+    console.log('\n🔄 Creating general documents table...');
+    await sql`
+      CREATE TABLE IF NOT EXISTS general_documents (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        type VARCHAR(100) NOT NULL,
+        size BIGINT,
+        url TEXT NOT NULL,
+        folder_id UUID REFERENCES folders(id) ON DELETE SET NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+    console.log('✅ Created general documents table');
+
+    // Create document_files table (for document management system)
+    console.log('\n🔄 Creating document_files table...');
+    await sql`
+      CREATE TABLE IF NOT EXISTS document_files (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        name VARCHAR(255) NOT NULL,
+        type VARCHAR(100) NOT NULL,
+        size BIGINT,
+        url TEXT NOT NULL,
+        folder_id UUID REFERENCES folders(id) ON DELETE SET NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+      );
+    `;
+    console.log('✅ Created document_files table');
 
     console.log('\n✨ Database initialization completed successfully!');
     

@@ -1,5 +1,5 @@
 import { query } from './neon-db';
-import { Employee, License, Induction, Document, EmergencyContact, CreateEmployee, UpdateEmployee } from './schema';
+import { Employee, License, Induction, Document, EmergencyContact, Folder, DocumentFile, CreateEmployee, UpdateEmployee } from './schema';
 
 // Employee Operations
 export const employeeOperations = {
@@ -374,6 +374,187 @@ export const emergencyContactOperations = {
   }
 };
 
+// Folder operations
+const folderOperations = {
+  // Get all folders
+  async getAll(): Promise<Folder[]> {
+    const { rows } = await query<Folder>('SELECT * FROM folders ORDER BY name ASC');
+    return rows;
+  },
+
+  // Get folder by ID
+  async getById(id: string): Promise<Folder | null> {
+    const { rows } = await query<Folder>('SELECT * FROM folders WHERE id = $1', [id]);
+    return rows[0] || null;
+  },
+
+  // Create a new folder
+  async create(folderData: Omit<Folder, 'id' | 'created_at' | 'updated_at'>): Promise<Folder> {
+    const { rows } = await query<Folder>(
+      `INSERT INTO folders (name, description, parent_id, path, created_at, updated_at)
+       VALUES ($1, $2, $3, $4, NOW(), NOW())
+       RETURNING *`,
+      [folderData.name, folderData.description || '', folderData.parent_id, folderData.path]
+    );
+    return rows[0];
+  },
+
+  // Update a folder
+  async update(id: string, updates: Partial<Omit<Folder, 'id' | 'created_at' | 'updated_at'>>): Promise<Folder | null> {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return null;
+
+    const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+    const values = [...Object.values(updates), id];
+
+    const { rows } = await query<Folder>(
+      `UPDATE folders 
+       SET ${setClause}, updated_at = NOW() 
+       WHERE id = $${values.length}
+       RETURNING *`,
+      values
+    );
+
+    return rows[0] || null;
+  },
+
+  // Delete a folder
+  async delete(id: string): Promise<boolean> {
+    const { rowCount } = await query('DELETE FROM folders WHERE id = $1', [id]);
+    return rowCount > 0;
+  },
+
+  // Get folders by parent ID
+  async getByParentId(parentId: string | null): Promise<Folder[]> {
+    const { rows } = await query<Folder>(
+      'SELECT * FROM folders WHERE parent_id = $1 ORDER BY name ASC',
+      [parentId]
+    );
+    return rows;
+  }
+};
+
+// Document File Operations (for the document management system)
+export const documentFileOperations = {
+  // Create a new document file
+  async create(document: Omit<DocumentFile, 'id' | 'created_at' | 'updated_at' | 'upload_date'>): Promise<DocumentFile> {
+    const { rows } = await query<DocumentFile>(
+      `INSERT INTO document_files 
+       (folder_id, name, type, file_url, size, uploaded_by, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING *`,
+      [
+        document.folder_id,
+        document.name,
+        document.type,
+        document.file_url,
+        document.size,
+        document.uploaded_by,
+        document.notes
+      ]
+    );
+    return rows[0];
+  },
+
+  // Get all documents in a folder
+  async getByFolderId(folderId: string): Promise<DocumentFile[]> {
+    const { rows } = await query<DocumentFile>(
+      'SELECT * FROM document_files WHERE folder_id = $1 ORDER BY created_at DESC',
+      [folderId]
+    );
+    return rows;
+  },
+
+  // Get all documents
+  async getAll(): Promise<DocumentFile[]> {
+    const { rows } = await query<DocumentFile>(
+      'SELECT * FROM document_files ORDER BY created_at DESC'
+    );
+    return rows;
+  },
+
+  // Get document by ID
+  async getById(id: string): Promise<DocumentFile | null> {
+    const { rows } = await query<DocumentFile>('SELECT * FROM document_files WHERE id = $1', [id]);
+    return rows[0] || null;
+  },
+
+  // Search documents
+  async search(searchQuery: string, folderId?: string): Promise<DocumentFile[]> {
+    let sql = `
+      SELECT * FROM document_files 
+      WHERE (name ILIKE $1 OR notes ILIKE $1)
+    `;
+    const params = [`%${searchQuery}%`];
+
+    if (folderId) {
+      sql += ' AND folder_id = $2';
+      params.push(folderId);
+    }
+
+    sql += ' ORDER BY created_at DESC';
+
+    const { rows } = await query<DocumentFile>(sql, params);
+    return rows;
+  },
+
+  // Update a document file
+  async update(id: string, updates: Partial<Omit<DocumentFile, 'id' | 'created_at' | 'updated_at' | 'upload_date'>>): Promise<DocumentFile | null> {
+    const keys = Object.keys(updates);
+    if (keys.length === 0) return null;
+
+    const setClause = keys.map((key, i) => `${key} = $${i + 1}`).join(', ');
+    const values = [...Object.values(updates), id];
+
+    const { rows } = await query<DocumentFile>(
+      `UPDATE document_files 
+       SET ${setClause}, updated_at = NOW() 
+       WHERE id = $${values.length}
+       RETURNING *`,
+      values
+    );
+
+    return rows[0] || null;
+  },
+
+  // Delete a document file
+  async delete(id: string): Promise<boolean> {
+    const { rowCount } = await query('DELETE FROM document_files WHERE id = $1', [id]);
+    return rowCount > 0;
+  },
+
+  // Move document to another folder
+  async move(id: string, newFolderId: string): Promise<DocumentFile | null> {
+    const { rows } = await query<DocumentFile>(
+      `UPDATE document_files 
+       SET folder_id = $1, updated_at = NOW() 
+       WHERE id = $2
+       RETURNING *`,
+      [newFolderId, id]
+    );
+
+    return rows[0] || null;
+  },
+
+  // Batch operations
+  async batchDelete(ids: string[]): Promise<number> {
+    const placeholders = ids.map((_, i) => `$${i + 1}`).join(',');
+    const { rowCount } = await query(`DELETE FROM document_files WHERE id IN (${placeholders})`, ids);
+    return rowCount;
+  },
+
+  async batchMove(ids: string[], newFolderId: string): Promise<number> {
+    const placeholders = ids.map((_, i) => `$${i + 2}`).join(',');
+    const { rowCount } = await query(
+      `UPDATE document_files 
+       SET folder_id = $1, updated_at = NOW() 
+       WHERE id IN (${placeholders})`,
+      [newFolderId, ...ids]
+    );
+    return rowCount;
+  }
+};
+
 // Export all operations
 export const db = {
   employees: employeeOperations,
@@ -381,6 +562,8 @@ export const db = {
   inductions: inductionOperations,
   documents: documentOperations,
   emergencyContacts: emergencyContactOperations,
+  folders: folderOperations,
+  documentFiles: documentFileOperations,
   query,
   testConnection: async (): Promise<boolean> => {
     try {

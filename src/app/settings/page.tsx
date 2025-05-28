@@ -6,6 +6,7 @@ import { toast } from "sonner";
 // Tabs for different settings sections
 const TABS = {
   DEPARTMENTS: "departments",
+  DOCUMENTS: "documents",
   GENERAL: "general",
   NOTIFICATIONS: "notifications",
 };
@@ -17,6 +18,25 @@ export default function SettingsPage() {
   const [newDepartment, setNewDepartment] = useState("");
   const [isEditing, setIsEditing] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+
+  // Document settings state
+  const [documentSettings, setDocumentSettings] = useState({
+    aiSearchEnabled: true,
+    maxFileSize: 100, // MB
+    allowedFileTypes: ['pdf', 'doc', 'docx', 'txt', 'xlsx', 'ppt', 'pptx'],
+    autoSaveSearches: true,
+    maxRecentSearches: 10,
+    enableDocumentVersioning: true,
+    defaultFolderPermissions: 'inherit',
+    enableAIChat: true,
+    chatSuggestedQuestions: [
+      "What are the key points in this document?",
+      "Can you summarize this document?",
+      "What are the action items mentioned?",
+      "Who are the stakeholders mentioned?",
+      "What are the deadlines mentioned?"
+    ]
+  });
 
   // Fetch departments from API
   useEffect(() => {
@@ -38,6 +58,19 @@ export default function SettingsPage() {
     };
 
     fetchDepartments();
+  }, []);
+
+  // Load document settings from localStorage
+  useEffect(() => {
+    const savedSettings = localStorage.getItem('documentSettings');
+    if (savedSettings) {
+      try {
+        const parsedSettings = JSON.parse(savedSettings);
+        setDocumentSettings(prev => ({ ...prev, ...parsedSettings }));
+      } catch (error) {
+        console.error('Error loading document settings:', error);
+      }
+    }
   }, []);
 
   const handleAddDepartment = async () => {
@@ -160,6 +193,16 @@ export default function SettingsPage() {
               onClick={() => setActiveTab(TABS.DEPARTMENTS)}
             >
               Departments
+            </button>
+            <button
+              className={`px-6 py-3 text-sm font-medium ${
+                activeTab === TABS.DOCUMENTS
+                  ? "border-b-2 border-blue-500 text-blue-600"
+                  : "text-gray-500 hover:text-gray-700"
+              }`}
+              onClick={() => setActiveTab(TABS.DOCUMENTS)}
+            >
+              Documents
             </button>
             <button
               className={`px-6 py-3 text-sm font-medium ${
@@ -292,6 +335,230 @@ export default function SettingsPage() {
                   )))}
                 </tbody>
               </table>
+            </div>
+          </div>
+        )}
+
+        {/* Document Settings */}
+        {activeTab === TABS.DOCUMENTS && (
+          <div className="space-y-6">
+            {/* Search Settings */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Search Settings</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">AI-Enhanced Search</label>
+                    <p className="text-sm text-gray-500">Enable AI-powered search suggestions and results</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={documentSettings.aiSearchEnabled}
+                    onChange={(e) => setDocumentSettings(prev => ({ ...prev, aiSearchEnabled: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Auto-save Searches</label>
+                    <p className="text-sm text-gray-500">Automatically save search queries for quick access</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={documentSettings.autoSaveSearches}
+                    onChange={(e) => setDocumentSettings(prev => ({ ...prev, autoSaveSearches: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Maximum Recent Searches
+                  </label>
+                  <select
+                    value={documentSettings.maxRecentSearches}
+                    onChange={(e) => setDocumentSettings(prev => ({ ...prev, maxRecentSearches: parseInt(e.target.value) }))}
+                    className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value={5}>5</option>
+                    <option value={10}>10</option>
+                    <option value={15}>15</option>
+                    <option value={20}>20</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* File Upload Settings */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">File Upload Settings</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Maximum File Size (MB)
+                  </label>
+                  <select
+                    value={documentSettings.maxFileSize}
+                    onChange={(e) => setDocumentSettings(prev => ({ ...prev, maxFileSize: parseInt(e.target.value) }))}
+                    className="w-32 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value={50}>50 MB</option>
+                    <option value={100}>100 MB</option>
+                    <option value={200}>200 MB</option>
+                    <option value={500}>500 MB</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Allowed File Types
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['pdf', 'doc', 'docx', 'txt', 'xlsx', 'xls', 'ppt', 'pptx', 'jpg', 'jpeg', 'png', 'gif'].map(type => (
+                      <label key={type} className="flex items-center">
+                        <input
+                          type="checkbox"
+                          checked={documentSettings.allowedFileTypes.includes(type)}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setDocumentSettings(prev => ({ 
+                                ...prev, 
+                                allowedFileTypes: [...prev.allowedFileTypes, type] 
+                              }));
+                            } else {
+                              setDocumentSettings(prev => ({ 
+                                ...prev, 
+                                allowedFileTypes: prev.allowedFileTypes.filter(t => t !== type) 
+                              }));
+                            }
+                          }}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2"
+                        />
+                        <span className="text-sm text-gray-700">.{type}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Folder Settings */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">Folder Settings</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Enable Document Versioning</label>
+                    <p className="text-sm text-gray-500">Keep track of document versions when files are updated</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={documentSettings.enableDocumentVersioning}
+                    onChange={(e) => setDocumentSettings(prev => ({ ...prev, enableDocumentVersioning: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Default Folder Permissions
+                  </label>
+                  <select
+                    value={documentSettings.defaultFolderPermissions}
+                    onChange={(e) => setDocumentSettings(prev => ({ ...prev, defaultFolderPermissions: e.target.value }))}
+                    className="w-48 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                  >
+                    <option value="inherit">Inherit from parent</option>
+                    <option value="private">Private (owner only)</option>
+                    <option value="team">Team access</option>
+                    <option value="public">Public access</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* AI Chat Settings */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-4">AI Chat Settings</h3>
+              
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">Enable AI Chat</label>
+                    <p className="text-sm text-gray-500">Allow users to chat with AI about documents</p>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={documentSettings.enableAIChat}
+                    onChange={(e) => setDocumentSettings(prev => ({ ...prev, enableAIChat: e.target.checked }))}
+                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                  />
+                </div>
+
+                {documentSettings.enableAIChat && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Suggested Questions
+                    </label>
+                    <div className="space-y-2">
+                      {documentSettings.chatSuggestedQuestions.map((question, index) => (
+                        <div key={index} className="flex items-center space-x-2">
+                          <input
+                            type="text"
+                            value={question}
+                            onChange={(e) => {
+                              const newQuestions = [...documentSettings.chatSuggestedQuestions];
+                              newQuestions[index] = e.target.value;
+                              setDocumentSettings(prev => ({ ...prev, chatSuggestedQuestions: newQuestions }));
+                            }}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                          />
+                          <button
+                            onClick={() => {
+                              const newQuestions = documentSettings.chatSuggestedQuestions.filter((_, i) => i !== index);
+                              setDocumentSettings(prev => ({ ...prev, chatSuggestedQuestions: newQuestions }));
+                            }}
+                            className="px-3 py-2 text-red-600 hover:text-red-800"
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        onClick={() => {
+                          setDocumentSettings(prev => ({ 
+                            ...prev, 
+                            chatSuggestedQuestions: [...prev.chatSuggestedQuestions, ""] 
+                          }));
+                        }}
+                        className="px-4 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                      >
+                        Add Question
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Save Button */}
+            <div className="bg-white shadow rounded-lg p-6">
+              <div className="flex justify-end">
+                <button
+                  onClick={() => {
+                    // Save document settings
+                    localStorage.setItem('documentSettings', JSON.stringify(documentSettings));
+                    toast.success('Document settings saved successfully');
+                  }}
+                  className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  Save Settings
+                </button>
+              </div>
             </div>
           </div>
         )}

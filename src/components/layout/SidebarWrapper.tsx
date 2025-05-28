@@ -16,16 +16,18 @@ export default function SidebarWrapper({ children }: SidebarWrapperProps) {
   };
 
   return (
-    <div className="flex min-h-screen relative">
+    <div className="flex h-screen overflow-hidden">
       {/* Sidebar */}
-      <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+      <div className="h-screen sticky top-0">
+        <Sidebar collapsed={sidebarCollapsed} onToggle={toggleSidebar} />
+      </div>
       
       {/* Main Content */}
-      <div className="flex-1 flex flex-col">
+      <div className="flex-1 flex flex-col overflow-auto">
         <AppNavbar 
           showBreadcrumbs={false} 
         />
-        <main className="flex-1 px-6 py-4 overflow-auto">
+        <main className="flex-1 px-6 py-4">
           {children}
         </main>
       </div>

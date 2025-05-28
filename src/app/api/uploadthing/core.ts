@@ -36,7 +36,7 @@ export const ourFileRouter = {
   // License uploader for employee licenses and certifications
   licenseUploader: f({
     pdf: { maxFileSize: "8MB", maxFileCount: 1 },
-    image: { maxFileSize: "5MB", maxFileCount: 1 },
+    image: { maxFileSize: "4MB", maxFileCount: 1 },
   })
     .middleware(async ({ req }) => {
       const user = await auth(req);
@@ -52,7 +52,7 @@ export const ourFileRouter = {
   // Induction uploader for employee inductions and training
   inductionUploader: f({
     pdf: { maxFileSize: "8MB", maxFileCount: 1 },
-    image: { maxFileSize: "5MB", maxFileCount: 1 },
+    image: { maxFileSize: "4MB", maxFileCount: 1 },
     video: { maxFileSize: "64MB", maxFileCount: 1 },
   })
     .middleware(async ({ req }) => {
